@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,15 +24,49 @@ interface TaskFormProps {
 export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    title: task?.title || "",
-    description: task?.description || "",
-    deadline: task?.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : "",
-    priority: task?.priority || "medium",
-    remind_h1: task?.remind_h1 || false,
-    remind_h0: task?.remind_h0 || false,
-    remind_h5h: task?.remind_h5h || false,
+    title: "",
+    description: "",
+    deadline: "",
+    priority: "medium" as "high" | "medium" | "low",
+    remind_h1: false,
+    remind_h0: false,
+    remind_h5h: false,
   })
   const { toast } = useToast()
+
+  // Reset form when task changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      if (task) {
+        // Edit mode - populate form with task data
+        const deadlineDate = new Date(task.deadline)
+        const localDateTime = new Date(deadlineDate.getTime() - deadlineDate.getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 16)
+
+        setFormData({
+          title: task.title || "",
+          description: task.description || "",
+          deadline: localDateTime,
+          priority: task.priority || "medium",
+          remind_h1: task.remind_h1 || false,
+          remind_h0: task.remind_h0 || false,
+          remind_h5h: task.remind_h5h || false,
+        })
+      } else {
+        // Create mode - reset form
+        setFormData({
+          title: "",
+          description: "",
+          deadline: "",
+          priority: "medium",
+          remind_h1: false,
+          remind_h0: false,
+          remind_h5h: false,
+        })
+      }
+    }
+  }, [task, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,12 +78,17 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
       } = await supabase.auth.getUser()
       if (!user) throw new Error("User not authenticated")
 
-      // Convert local datetime to UTC with Indonesia timezone
-      const deadlineUTC = new Date(formData.deadline + ":00+07:00").toISOString()
+      // Convert local datetime to UTC
+      const deadlineUTC = new Date(formData.deadline).toISOString()
 
       const taskData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description || null,
         deadline: deadlineUTC,
+        priority: formData.priority,
+        remind_h1: formData.remind_h1,
+        remind_h0: formData.remind_h0,
+        remind_h5h: formData.remind_h5h,
         user_id: user.id,
       }
 
@@ -77,23 +116,11 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
 
       onSuccess()
       onOpenChange(false)
-
-      // Reset form if creating new task
-      if (!task) {
-        setFormData({
-          title: "",
-          description: "",
-          deadline: "",
-          priority: "medium",
-          remind_h1: false,
-          remind_h0: false,
-          remind_h5h: false,
-        })
-      }
     } catch (error: any) {
+      console.error("Task form error:", error)
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Terjadi kesalahan saat menyimpan tugas",
         variant: "destructive",
       })
     } finally {
@@ -152,7 +179,10 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
 
           <div className="space-y-2">
             <Label className="text-slate-300">Prioritas</Label>
-            <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+            <Select
+              value={formData.priority}
+              onValueChange={(value: "high" | "medium" | "low") => setFormData({ ...formData, priority: value })}
+            >
               <SelectTrigger className="bg-slate-700/50 border-slate-600 focus:border-emerald-400 text-slate-50">
                 <SelectValue />
               </SelectTrigger>

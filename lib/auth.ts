@@ -14,21 +14,6 @@ export async function signUp(email: string, password: string, name: string, phon
     })
 
     if (error) throw error
-
-    // Jika user langsung confirmed, buat profile manual
-    if (data.user && data.user.email_confirmed_at) {
-      const { error: profileError } = await supabase.from("users").insert({
-        id: data.user.id,
-        email,
-        name,
-        phone_number: phoneNumber,
-      })
-
-      if (profileError) {
-        console.error("Profile creation error:", profileError)
-      }
-    }
-
     return data
   } catch (error) {
     console.error("SignUp error:", error)
@@ -60,6 +45,13 @@ export async function getCurrentUser() {
 
 export async function getUserProfile(userId: string) {
   const { data, error } = await supabase.from("users").select("*").eq("id", userId).single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateUserProfile(userId: string, updates: { name?: string; phone_number?: string }) {
+  const { data, error } = await supabase.from("users").update(updates).eq("id", userId).select().single()
 
   if (error) throw error
   return data

@@ -2,35 +2,34 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { AppSidebar } from "./app-sidebar"
 import { MobileNav } from "./mobile-nav"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
-import type { User } from "@supabase/supabase-js"
 
 interface AppLayoutProps {
   children: React.ReactNode
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const pathname = usePathname()
 
   useEffect(() => {
     const getUser = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push("/")
+        return
+      }
+
       setUser(user)
       setLoading(false)
-
-      if (!user && pathname !== "/") {
-        router.push("/")
-      }
     }
 
     getUser()
@@ -38,14 +37,13 @@ export function AppLayout({ children }: AppLayoutProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
-      if (!session?.user && pathname !== "/") {
+      if (event === "SIGNED_OUT") {
         router.push("/")
       }
     })
 
     return () => subscription.unsubscribe()
-  }, [router, pathname])
+  }, [router])
 
   if (loading) {
     return (
@@ -55,19 +53,22 @@ export function AppLayout({ children }: AppLayoutProps) {
     )
   }
 
-  if (!user) {
-    return null
-  }
-
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen bg-slate-900">
-        <AppSidebar user={user} />
-        <SidebarInset className="flex-1">
-          <main className="flex-1 p-4 md:p-6">{children}</main>
-        </SidebarInset>
+    <div className="min-h-screen bg-slate-900 flex">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <AppSidebar />
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">{children}</main>
+      </div>
+
+      {/* Mobile Navigation */}
+      <div className="md:hidden">
         <MobileNav />
       </div>
-    </SidebarProvider>
+    </div>
   )
 }

@@ -1,8 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
 
-const FONNTE_TOKEN = "yceZSkJwDY7X8PRiVTjM"
-const FONNTE_API_URL = "https://api.fonnte.com/send"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+const FONNTE_TOKEN = process.env.FONNTE_API_TOKEN!
+const FONNTE_API_URL = process.env.FONNTE_API_URL!
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,11 +25,6 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq("status", "pending")
-      .or(`
-        and(remind_h1.eq.true,deadline.gte.${tomorrow.toISOString()},deadline.lt.${new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000).toISOString()}),
-        and(remind_h0.eq.true,deadline.gte.${now.toISOString()},deadline.lt.${tomorrow.toISOString()}),
-        and(remind_h5h.eq.true,deadline.gte.${in5Hours.toISOString()},deadline.lt.${new Date(in5Hours.getTime() + 60 * 60 * 1000).toISOString()})
-      `)
 
     if (error) throw error
 

@@ -7,9 +7,8 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Personal Task Reminder",
-  description: "Manage your tasks with WhatsApp reminders",
-    generator: 'v0.dev'
+  title: "Task Reminder - Kelola Tugas dengan Pengingat WhatsApp",
+  description: "Aplikasi personal task reminder dengan notifikasi WhatsApp otomatis",
 }
 
 export default function RootLayout({
@@ -18,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-slate-900 text-slate-50 min-h-screen antialiased`}>
+    <html lang="id" className="dark">
+      <body className={inter.className}>
         {children}
         <Toaster />
       </body>
