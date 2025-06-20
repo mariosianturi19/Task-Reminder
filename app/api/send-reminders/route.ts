@@ -1,5 +1,7 @@
+// app/api/send-reminders/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { convertToJakartaTime, formatDateIndonesian } from "@/lib/timezone-utils"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -10,9 +12,8 @@ const FONNTE_API_URL = process.env.FONNTE_API_URL!
 
 export async function GET(request: NextRequest) {
   try {
-    const now = new Date()
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    const in5Hours = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+    // Get current Jakarta time
+    const nowJakarta = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }))
 
     // Get tasks that need reminders
     const { data: tasks, error } = await supabase
@@ -31,13 +32,13 @@ export async function GET(request: NextRequest) {
     const results = []
 
     for (const task of tasks || []) {
-      const deadline = new Date(task.deadline)
+      const deadlineJakarta = convertToJakartaTime(task.deadline)
       const user = task.users
 
       if (!user?.phone_number) continue
 
       let reminderType = ""
-      const diffHours = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60)
+      const diffHours = (deadlineJakarta.getTime() - nowJakarta.getTime()) / (1000 * 60 * 60)
 
       // Determine reminder type
       if (task.remind_h1 && diffHours >= 20 && diffHours <= 28) {
@@ -52,17 +53,16 @@ export async function GET(request: NextRequest) {
 
       const message = `Hai ${user.name}! 📚
 
-Kamu punya tugas: "${task.title}" dengan deadline ${deadline.toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })}.
+🎯 Reminder Tugas: "${task.title}"
 
-Jangan lupa dikerjakan ya! ⏰
+⏰ Deadline: ${formatDateIndonesian(task.deadline)} WIB
+📅 Reminder: ${reminderType}
 
-- Task Reminder Bot`
+${task.description ? `📝 Deskripsi: ${task.description}` : ''}
+
+Jangan lupa dikerjakan ya! Semangat! 💪
+
+- Task Reminder Bot 🤖`
 
       try {
         const response = await fetch(FONNTE_API_URL, {
@@ -84,6 +84,7 @@ Jangan lupa dikerjakan ya! ⏰
           user_name: user.name,
           phone: user.phone_number,
           reminder_type: reminderType,
+          deadline_wib: formatDateIndonesian(task.deadline),
           status: response.ok ? "sent" : "failed",
           response: result,
         })
@@ -93,6 +94,7 @@ Jangan lupa dikerjakan ya! ⏰
           user_name: user.name,
           phone: user.phone_number,
           reminder_type: reminderType,
+          deadline_wib: formatDateIndonesian(task.deadline),
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",
         })
@@ -101,8 +103,10 @@ Jangan lupa dikerjakan ya! ⏰
 
     return NextResponse.json({
       success: true,
-      processed: results.length,
+      processed_at: nowJakarta.toISOString(),
+      timezone: "Asia/Jakarta (WIB)",
       results,
+      total_processed: results.length,
     })
   } catch (error) {
     console.error("Error sending reminders:", error)
@@ -111,7 +115,7 @@ Jangan lupa dikerjakan ya! ⏰
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

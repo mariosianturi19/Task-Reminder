@@ -1,18 +1,17 @@
+// components/tasks/task-form.tsx
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { formatForDateTimeInput, convertToUTC, getCurrentJakartaTime } from "@/lib/timezone-utils"
 
 interface TaskFormProps {
   open: boolean
@@ -34,31 +33,26 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
   })
   const { toast } = useToast()
 
-  // Reset form when task changes or dialog opens
   useEffect(() => {
     if (open) {
       if (task) {
-        // Edit mode - populate form with task data
-        const deadlineDate = new Date(task.deadline)
-        const localDateTime = new Date(deadlineDate.getTime() - deadlineDate.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16)
-
+        // Edit mode - convert UTC to Jakarta time for display
         setFormData({
           title: task.title || "",
           description: task.description || "",
-          deadline: localDateTime,
+          deadline: formatForDateTimeInput(task.deadline),
           priority: task.priority || "medium",
           remind_h1: task.remind_h1 || false,
           remind_h0: task.remind_h0 || false,
           remind_h5h: task.remind_h5h || false,
         })
       } else {
-        // Create mode - reset form
+        // Create mode - set default to current Jakarta time + 1 day
+        const tomorrow = new Date(getCurrentJakartaTime().getTime() + 24 * 60 * 60 * 1000);
         setFormData({
           title: "",
           description: "",
-          deadline: "",
+          deadline: formatForDateTimeInput(tomorrow),
           priority: "medium",
           remind_h1: false,
           remind_h0: false,
@@ -73,13 +67,11 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
     setLoading(true)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("User not authenticated")
 
-      // Convert local datetime to UTC
-      const deadlineUTC = new Date(formData.deadline).toISOString()
+      // Convert Jakarta time to UTC for storage
+      const deadlineUTC = convertToUTC(formData.deadline).toISOString()
 
       const taskData = {
         title: formData.title,
@@ -93,34 +85,37 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
       }
 
       if (task) {
-        // Update existing task
-        const { error } = await supabase.from("tasks").update(taskData).eq("id", task.id)
+        const { error } = await supabase
+          .from("tasks")
+          .update(taskData)
+          .eq("id", task.id)
 
         if (error) throw error
 
         toast({
           title: "Tugas berhasil diperbarui!",
-          description: "Perubahan telah disimpan.",
+          description: "Perubahan telah disimpan dengan waktu WIB.",
         })
       } else {
-        // Create new task
-        const { error } = await supabase.from("tasks").insert(taskData)
+        const { error } = await supabase
+          .from("tasks")
+          .insert(taskData)
 
         if (error) throw error
 
         toast({
           title: "Tugas berhasil dibuat!",
-          description: "Tugas baru telah ditambahkan.",
+          description: "Tugas baru telah ditambahkan dengan waktu WIB.",
         })
       }
 
       onSuccess()
       onOpenChange(false)
-    } catch (error: any) {
-      console.error("Task form error:", error)
+    } catch (error) {
+      console.error("Error saving task:", error)
       toast({
         title: "Error",
-        description: error.message || "Terjadi kesalahan saat menyimpan tugas",
+        description: "Gagal menyimpan tugas. Silakan coba lagi.",
         variant: "destructive",
       })
     } finally {
@@ -130,121 +125,109 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-slate-800 border-slate-700">
+      <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-slate-50">{task ? "Edit Tugas" : "Tambah Tugas Baru"}</DialogTitle>
+          <DialogTitle className="text-emerald-400">
+            {task ? "Edit Tugas" : "Tambah Tugas Baru"}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-slate-300">
-              Judul Tugas
-            </Label>
+            <Label htmlFor="title">Judul Tugas</Label>
             <Input
               id="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Masukkan judul tugas"
-              className="bg-slate-700/50 border-slate-600 focus:border-emerald-400 text-slate-50"
+              className="bg-slate-700 border-slate-600 text-slate-50"
+              placeholder="Masukkan judul tugas..."
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-slate-300">
-              Deskripsi
-            </Label>
+            <Label htmlFor="description">Deskripsi (Opsional)</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Deskripsi tugas (opsional)"
-              className="bg-slate-700/50 border-slate-600 focus:border-emerald-400 text-slate-50 min-h-[80px]"
+              className="bg-slate-700 border-slate-600 text-slate-50 min-h-20"
+              placeholder="Masukkan deskripsi tugas..."
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="deadline" className="text-slate-300">
-              Deadline
-            </Label>
+            <Label htmlFor="deadline">Deadline (Waktu Indonesia Barat - WIB)</Label>
             <Input
               id="deadline"
               type="datetime-local"
               value={formData.deadline}
               onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-              className="bg-slate-700/50 border-slate-600 focus:border-emerald-400 text-slate-50"
+              className="bg-slate-700 border-slate-600 text-slate-50"
               required
             />
+            <p className="text-xs text-slate-400">
+              * Waktu akan disimpan dalam zona waktu WIB (UTC+7)
+            </p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-slate-300">Prioritas</Label>
-            <Select
-              value={formData.priority}
-              onValueChange={(value: "high" | "medium" | "low") => setFormData({ ...formData, priority: value })}
-            >
-              <SelectTrigger className="bg-slate-700/50 border-slate-600 focus:border-emerald-400 text-slate-50">
-                <SelectValue />
+            <Label htmlFor="priority">Prioritas</Label>
+            <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value as any })}>
+              <SelectTrigger className="bg-slate-700 border-slate-600 text-slate-50">
+                <SelectValue placeholder="Pilih prioritas" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
-                <SelectItem value="high" className="text-red-400">
-                  High
-                </SelectItem>
-                <SelectItem value="medium" className="text-yellow-400">
-                  Medium
-                </SelectItem>
-                <SelectItem value="low" className="text-green-400">
-                  Low
-                </SelectItem>
+              <SelectContent className="bg-slate-700 border-slate-600">
+                <SelectItem value="low" className="text-slate-50">Rendah</SelectItem>
+                <SelectItem value="medium" className="text-slate-50">Sedang</SelectItem>
+                <SelectItem value="high" className="text-slate-50">Tinggi</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-3">
-            <Label className="text-slate-300">Pengingat WhatsApp</Label>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="remind_h1"
-                  checked={formData.remind_h1}
-                  onCheckedChange={(checked) => setFormData({ ...formData, remind_h1: !!checked })}
-                  className="border-slate-600 data-[state=checked]:bg-emerald-500"
-                />
-                <Label htmlFor="remind_h1" className="text-sm text-slate-400">
-                  Ingatkan H-1 (1 hari sebelum deadline)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="remind_h0"
-                  checked={formData.remind_h0}
-                  onCheckedChange={(checked) => setFormData({ ...formData, remind_h0: !!checked })}
-                  className="border-slate-600 data-[state=checked]:bg-emerald-500"
-                />
-                <Label htmlFor="remind_h0" className="text-sm text-slate-400">
-                  Ingatkan hari-H (hari deadline)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="remind_h5h"
-                  checked={formData.remind_h5h}
-                  onCheckedChange={(checked) => setFormData({ ...formData, remind_h5h: !!checked })}
-                  className="border-slate-600 data-[state=checked]:bg-emerald-500"
-                />
-                <Label htmlFor="remind_h5h" className="text-sm text-slate-400">
-                  Ingatkan 5 jam sebelum deadline
-                </Label>
-              </div>
+            <Label>Pengingat WhatsApp</Label>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remind_h1"
+                checked={formData.remind_h1}
+                onCheckedChange={(checked) => setFormData({ ...formData, remind_h1: !!checked })}
+              />
+              <Label htmlFor="remind_h1" className="text-sm">
+                H-1 (1 hari sebelum deadline)
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remind_h0"
+                checked={formData.remind_h0}
+                onCheckedChange={(checked) => setFormData({ ...formData, remind_h0: !!checked })}
+              />
+              <Label htmlFor="remind_h0" className="text-sm">
+                Hari-H (pada hari deadline)
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remind_h5h"
+                checked={formData.remind_h5h}
+                onCheckedChange={(checked) => setFormData({ ...formData, remind_h5h: !!checked })}
+              />
+              <Label htmlFor="remind_h5h" className="text-sm">
+                5 jam sebelum deadline
+              </Label>
             </div>
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1 bg-slate-700/50 border-slate-600 hover:bg-slate-600 text-slate-300"
+              className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
             >
               Batal
             </Button>
@@ -253,8 +236,7 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
               disabled={loading}
               className="flex-1 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600"
             >
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {task ? "Perbarui" : "Simpan"}
+              {loading ? "Menyimpan..." : task ? "Perbarui" : "Simpan"}
             </Button>
           </div>
         </form>

@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { getUserProfile, updateUserProfile } from "@/lib/auth"
 import { supabase } from "@/lib/supabase"
-import { User, Phone, Mail, Save, Loader2, Bell } from "lucide-react"
+import { User, Phone, Mail, Save, Loader2, Bell, Clock } from "lucide-react"
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -102,7 +102,7 @@ export default function SettingsPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400"></div>
+          <div className="w-10 h-10 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
         </div>
       </AppLayout>
     )
@@ -110,41 +110,45 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold text-slate-50">Pengaturan</h1>
-          <p className="text-slate-400">Kelola profil dan preferensi akun Anda</p>
+        <div className="space-y-2">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
+            Pengaturan
+          </h1>
+          <p className="text-slate-300 text-sm md:text-base">Kelola profil dan preferensi akun Anda</p>
         </div>
 
         {/* Profile Card */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-50">
-              <User className="w-5 h-5 text-emerald-400" />
+        <Card className="backdrop-blur-xl bg-white/5 border border-white/10">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3 text-slate-50 text-lg">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500/20 to-blue-500/20">
+                <User className="w-5 h-5 text-emerald-400" />
+              </div>
               Profil Pengguna
             </CardTitle>
-            <CardDescription className="text-slate-400">Perbarui informasi profil Anda</CardDescription>
+            <CardDescription className="text-slate-300 text-sm">Perbarui informasi profil Anda</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <form onSubmit={handleSave} className="space-y-6">
               {/* Avatar Section */}
-              <div className="flex items-center gap-4">
-                <Avatar className="w-16 h-16">
-                  <AvatarFallback className="bg-slate-600 text-slate-200 text-lg">
-                    {userProfile?.name ? getInitials(userProfile.name) : <User className="w-8 h-8" />}
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-700/30 border border-slate-600/30">
+                <Avatar className="w-12 h-12 md:w-16 md:h-16">
+                  <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-700 text-slate-200 text-sm md:text-lg font-semibold">
+                    {userProfile?.name ? getInitials(userProfile.name) : <User className="w-6 h-6 md:w-8 md:h-8" />}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <h3 className="font-medium text-slate-50">{userProfile?.name || "User"}</h3>
-                  <p className="text-sm text-slate-400">{userProfile?.email}</p>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-slate-50 truncate">{userProfile?.name || "User"}</h3>
+                  <p className="text-sm text-slate-400 truncate">{userProfile?.email}</p>
                 </div>
               </div>
 
               {/* Form Fields */}
-              <div className="grid gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-slate-300">
+                  <Label htmlFor="name" className="text-slate-200 font-medium">
                     Nama Lengkap
                   </Label>
                   <div className="relative">
@@ -162,7 +166,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-slate-300">
+                  <Label htmlFor="phone" className="text-slate-200 font-medium">
                     Nomor WhatsApp
                   </Label>
                   <div className="relative">
@@ -177,11 +181,11 @@ export default function SettingsPage() {
                       required
                     />
                   </div>
-                  <p className="text-xs text-slate-500">Nomor ini akan digunakan untuk pengingat WhatsApp</p>
+                  <p className="text-xs text-slate-400">Nomor ini akan digunakan untuk pengingat WhatsApp</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-300">
+                  <Label htmlFor="email" className="text-slate-200 font-medium">
                     Email
                   </Label>
                   <div className="relative">
@@ -194,45 +198,19 @@ export default function SettingsPage() {
                       disabled
                     />
                   </div>
-                  <p className="text-xs text-slate-500">Email tidak dapat diubah</p>
+                  <p className="text-xs text-slate-400">Email tidak dapat diubah</p>
                 </div>
               </div>
 
               <Button
                 type="submit"
                 disabled={saving}
-                className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600"
+                className="w-full bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600"
               >
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Simpan Perubahan
               </Button>
             </form>
-          </CardContent>
-        </Card>
-
-        {/* Reminder Settings */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-50">
-              <Bell className="w-5 h-5 text-emerald-400" />
-              Pengaturan Pengingat
-            </CardTitle>
-            <CardDescription className="text-slate-400">Informasi tentang sistem pengingat WhatsApp</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg bg-slate-700/30 border border-slate-600/50">
-              <h4 className="font-medium text-slate-50 mb-2">Cara Kerja Pengingat</h4>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li>• Pengingat H-1: Dikirim 1 hari sebelum deadline</li>
-                <li>• Pengingat Hari-H: Dikirim pada hari deadline</li>
-                <li>• Pengingat 5 jam: Dikirim 5 jam sebelum deadline</li>
-              </ul>
-            </div>
-            <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-              <p className="text-sm text-emerald-400">
-                💡 Pastikan nomor WhatsApp Anda benar untuk menerima pengingat otomatis
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
