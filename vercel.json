@@ -4,7 +4,7 @@
   "framework": "nextjs",
   "installCommand": "npm install",
   "env": {
-    "TZ": "Asia/Jakarta"
+    "NEXT_PUBLIC_TIMEZONE": "Asia/Jakarta"
   },
   "functions": {
     "app/api/send-reminders/route.ts": {
